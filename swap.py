@@ -42,7 +42,8 @@ def get_latest_date_from_csvs():
 
 def update_csv_with_current_values(sofr, treasury, us_yield, germany_yield, japan_yield, fed_rate, ecb_rate, boj_rate):
     """Update both CSV files with current values, removing duplicates"""
-    today = get_latest_date_from_csvs()
+    import datetime
+    today = datetime.date.today()  # Use today's date
     
     # Update SOFR/Treasury CSV
     sofr_spread = sofr - treasury
@@ -56,7 +57,7 @@ def update_csv_with_current_values(sofr, treasury, us_yield, germany_yield, japa
     else:
         df_sofr = pd.DataFrame(columns=['Date', 'SOFR_Swap', 'Treasury_Yield', 'Spread'])
     
-    # Append new SOFR row
+    # Append new SOFR row for today
     new_sofr_row = pd.DataFrame([[pd.Timestamp(today), f'{sofr:.4f}', f'{treasury:.4f}', f'{sofr_spread:.4f}']], 
                                 columns=['Date', 'SOFR_Swap', 'Treasury_Yield', 'Spread'])
     df_sofr = pd.concat([df_sofr, new_sofr_row], ignore_index=True)
@@ -85,7 +86,7 @@ def update_csv_with_current_values(sofr, treasury, us_yield, germany_yield, japa
             'Germany_30Y_Yield', 'Germany_Policy', 'Germany_Spread',
             'Japan_30Y_Yield', 'Japan_Policy', 'Japan_Spread'])
     
-    # Append new yield row
+    # Append new yield row for today
     new_yield_row = pd.DataFrame([[pd.Timestamp(today), f'{us_yield:.4f}', f'{fed_rate:.4f}', f'{us_spread:.4f}',
                                    f'{germany_yield:.4f}', f'{ecb_rate:.4f}', f'{germany_spread:.4f}',
                                    f'{japan_yield:.4f}', f'{boj_rate:.4f}', f'{japan_spread:.4f}']],
@@ -121,7 +122,7 @@ def main():
             spread = sofr - treasury
             st.success(f"Spread (SOFR - Treasury): {spread:.2f}%")
             # Update SOFR CSV only when user submits
-            today = get_latest_date_from_csvs()
+            today = datetime.date.today()
             sofr_csv_file = 'sofr_treasury_spread_log.csv'
             
             # Load existing SOFR data if present
@@ -164,7 +165,7 @@ def main():
             japan_spread = japan_yield - boj_rate
             st.success(f"US: {us_spread:.2f}% | Germany: {germany_spread:.2f}% | Japan: {japan_spread:.2f}%")
             # Update yield CSV only when user submits
-            today = get_latest_date_from_csvs()
+            today = datetime.date.today()
             yield_csv_file = 'thirtyy_spread_log.csv'
             
             # Load existing yield data if present
