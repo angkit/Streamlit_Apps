@@ -394,9 +394,20 @@ if os.path.isfile(swap_csv) and os.path.isfile(yield_csv):
         fig.add_shape(type="line", x0=df_plot['Date'].min(), x1=df_plot['Date'].max(), y0=0, y1=0, line=dict(color="black", width=1, dash="dash"), xref='x', yref='y2')
         fig.update_layout(
             title="30Y Yield and Swap Spread Over Time",
-            xaxis_title="Date",
-            yaxis=dict(title="30Y Yield", titlefont=dict(color='blue'), tickfont=dict(color='blue')),
-            yaxis2=dict(title="Swap Spread", titlefont=dict(color='green'), tickfont=dict(color='green'), overlaying='y', side='right', showgrid=False),
+            xaxis=dict(title="Date"),
+            yaxis=dict(
+                title="30Y Yield",
+                titlefont=dict(color='blue'),
+                tickfont=dict(color='blue')
+            ),
+            yaxis2=dict(
+                title="Swap Spread",
+                titlefont=dict(color='green'),
+                tickfont=dict(color='green'),
+                overlaying='y',
+                side='right',
+                showgrid=False
+            ),
             legend_title="Series",
             hovermode="x unified",
             template="plotly_white",
