@@ -324,6 +324,90 @@ def main():
             # Show data summary
             st.write(f"**Data Summary:** {len(combined_data)} points | {combined_data['Date'].min().strftime('%Y-%m-%d')} to {combined_data['Date'].max().strftime('%Y-%m-%d')}")
     
+# --- Historical Data Section: 30Y Swap Spread & Yield ---
+st.markdown('---')
+st.subheader('📈 Historical Data: 30Y Swap Spread & Yield')
+
+swap_csv = '30y_swap.csv'
+yield_csv = '30y.csv'
+
+if os.path.isfile(swap_csv) and os.path.isfile(yield_csv):
+    df_swap = pd.read_csv(swap_csv)
+    df_yield = pd.read_csv(yield_csv)
+    # Use capitalized column names
+    if 'Date' in df_swap.columns and 'Price' in df_swap.columns and 'Date' in df_yield.columns and 'Price' in df_yield.columns:
+        # Merge on Date
+        df_swap['Date'] = pd.to_datetime(df_swap['Date'])
+        df_yield['Date'] = pd.to_datetime(df_yield['Date'])
+        df_merged = pd.merge(df_swap[['Date', 'Price']], df_yield[['Date', 'Price']], on='Date', suffixes=('_swap', '_yield'))
+        df_merged['spread'] = df_merged['Price_swap'] - df_merged['Price_yield']
+
+        # Date range selector (show all options as radio buttons)
+        st.markdown('**Select time range to display:**')
+        range_options = {
+            '7 Days': 7,
+            '1 Month': 30,
+            '3 Months': 90,
+            '6 Months': 180,
+            '1 Year': 365,
+            '2 Years': 365*2,
+            '3 Years': 365*3,
+            '5 Years': 365*5,
+            'All': None
+        }
+        range_choice = st.radio('Time Range', list(range_options.keys()), index=len(range_options)-1, horizontal=True)
+        days = range_options[range_choice]
+        if days is not None:
+            max_date = df_merged['Date'].max()
+            min_date = max_date - pd.Timedelta(days=days)
+            df_plot = df_merged[df_merged['Date'] >= min_date]
+        else:
+            df_plot = df_merged
+
+        # Moving average options
+        st.markdown('**Show moving averages:**')
+        ma_periods = [7, 30, 60, 90]
+        ma_options = {f'{p}-day MA': p for p in ma_periods}
+        selected_ma = st.multiselect('Select moving averages to plot', list(ma_options.keys()), default=[], key='ma_select', help='Add moving averages for both series')
+
+        # Compute moving averages if selected
+        for p in ma_periods:
+            if f'{p}-day MA' in selected_ma:
+                df_plot[f'Yield_MA_{p}'] = df_plot['Price_yield'].rolling(window=p, min_periods=1).mean()
+                df_plot[f'Spread_MA_{p}'] = df_plot['spread'].rolling(window=p, min_periods=1).mean()
+
+        # Plot with secondary y-axis for swap spread
+        fig = go.Figure()
+        # Add raw series only if no moving average is selected
+        if not selected_ma:
+            # 30Y Yield on left y-axis
+            fig.add_trace(go.Scatter(x=df_plot['Date'], y=df_plot['Price_yield'], mode='lines', name='30Y Yield', line=dict(color='blue'), yaxis='y1'))
+            # Swap Spread on right y-axis
+            fig.add_trace(go.Scatter(x=df_plot['Date'], y=df_plot['spread'], mode='lines', name='Swap Spread', line=dict(color='green'), yaxis='y2'))
+        # Add moving averages if selected
+        ma_colors = {7: 'royalblue', 30: 'orange', 60: 'purple', 90: 'brown'}
+        for p in ma_periods:
+            if f'{p}-day MA' in selected_ma:
+                fig.add_trace(go.Scatter(x=df_plot['Date'], y=df_plot[f'Yield_MA_{p}'], mode='lines', name=f'30Y Yield {p}-day MA', line=dict(color=ma_colors[p], dash='dot'), yaxis='y1'))
+                fig.add_trace(go.Scatter(x=df_plot['Date'], y=df_plot[f'Spread_MA_{p}'], mode='lines', name=f'Swap Spread {p}-day MA', line=dict(color=ma_colors[p], dash='dash'), yaxis='y2'))
+        # Highlight zero line on right y-axis
+        fig.add_shape(type="line", x0=df_plot['Date'].min(), x1=df_plot['Date'].max(), y0=0, y1=0, line=dict(color="black", width=1, dash="dash"), xref='x', yref='y2')
+        fig.update_layout(
+            title="30Y Yield and Swap Spread Over Time",
+            xaxis_title="Date",
+            yaxis=dict(title="30Y Yield", titlefont=dict(color='blue'), tickfont=dict(color='blue')),
+            yaxis2=dict(title="Swap Spread", titlefont=dict(color='green'), tickfont=dict(color='green'), overlaying='y', side='right', showgrid=False),
+            legend_title="Series",
+            hovermode="x unified",
+            template="plotly_white",
+            height=400
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        st.caption(f"Data points: {len(df_plot)} | {df_plot['Date'].min().strftime('%Y-%m-%d')} to {df_plot['Date'].max().strftime('%Y-%m-%d')}")
+    else:
+        st.warning('CSV files must contain columns: Date, Price')
+else:
+    st.info('Historical swap and yield CSV files not found in the directory.')
 
 
 if __name__ == "__main__":

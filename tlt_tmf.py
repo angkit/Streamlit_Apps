@@ -363,6 +363,73 @@ if 'Contracts Needed' in merged_df.columns:
 for col in ['Current Exposure', 'Net Exposure Needed', 'Total Premium Cost', 'Total Exposure', 'Per-Contract Exposure']:
     if col in merged_df.columns:
         merged_df[col] = merged_df[col].apply(lambda x: f"${int(round(x)):,}")
+
+# --- Safe Short Call Contracts Section ---
+st.markdown("---")
+with st.expander("🛡️ Safe Short Call Contracts to Sell", expanded=False):
+    st.subheader("🛡️ Safe Short Call Contracts to Sell")
+
+    # Show safe short calls for each selected ETF
+    for etf_idx, (etf, strike, bid, current_price) in enumerate([(option_etf1, strike1, bid1, option_etf1_price), (option_etf2, strike2, bid2, option_etf2_price)]):
+        if strike is not None and bid is not None:
+            st.markdown(f"### {etf} Safe Short Call Analysis")
+            
+            # Get available expirations for short calls
+            try:
+                etf_ticker = yf.Ticker(etf)
+                expirations = etf_ticker.options
+                if expirations:
+                    # Select expiry for short calls (default to first available)
+                    short_expiry = st.selectbox(
+                        f"Select expiry for {etf} short calls:",
+                        options=expirations,
+                        key=f"short_expiry_{etf}",
+                        index=0
+                    )
+                    
+                    if short_expiry:
+                        # Get option chain for selected expiry
+                        opt_chain = etf_ticker.option_chain(short_expiry)
+                        calls = opt_chain.calls.copy()
+                        
+                        if not calls.empty:
+                            # Calculate DTE
+                            dte = (datetime.datetime.strptime(short_expiry, "%Y-%m-%d") - datetime.datetime.today()).days
+                            calls['dte'] = dte
+                            
+                            # Calculate safe price for each call option
+                            calls['safe_price'] = strike + bid - calls['bid']
+                            
+                            # Calculate margin for each call option
+                            calls['margin'] = calls['strike'] - calls['safe_price']
+                            
+                            # Filter for safe calls (safe_price > 0 and margin > 0)
+                            safe_calls = calls[(calls['safe_price'] > 0) & (calls['margin'] > 0)].copy()
+                            
+                            if not safe_calls.empty:
+                                # Sort by margin (ascending)
+                                safe_calls = safe_calls.sort_values('margin', ascending=True)
+                                
+                                # Display safe calls table
+                                st.markdown(f"#### Safe Short Calls for {etf} ({dte} DTE)")
+                                st.info(f"**Safe Price Formula:** Strike (${strike:.2f}) + Premium Paid (${bid:.2f}) - Premium Received from Short Call")
+                                display_cols = ['strike', 'bid', 'ask', 'safe_price', 'margin']
+                                available_cols = [col for col in display_cols if col in safe_calls.columns]
+                                st.dataframe(
+                                    safe_calls[available_cols],
+                                    use_container_width=True
+                                )
+                            else:
+                                st.warning(f"No safe short call options found for {etf} on {short_expiry}. All options would result in negative margins.")
+                        else:
+                            st.warning(f"No call options available for {etf} on {short_expiry}")
+                    else:
+                        st.info(f"Please select an expiry for {etf} short calls")
+                else:
+                    st.warning(f"No option expirations available for {etf}")
+            except Exception as e:
+                st.error(f"Error loading options for {etf}: {e}")
+
 st.markdown("---")
 with st.expander("📊 Final Combined Table", expanded=False):
     st.subheader("📊 Final Combined Table")
