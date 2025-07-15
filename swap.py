@@ -397,12 +397,10 @@ if os.path.isfile(swap_csv) and os.path.isfile(yield_csv):
             xaxis=dict(title="Date"),
             yaxis=dict(
                 title="30Y Yield",
-                titlefont=dict(color='blue'),
                 tickfont=dict(color='blue')
             ),
             yaxis2=dict(
                 title="Swap Spread",
-                titlefont=dict(color='green'),
                 tickfont=dict(color='green'),
                 overlaying='y',
                 side='right',
