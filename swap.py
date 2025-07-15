@@ -209,8 +209,8 @@ def main():
     col_left, col_right = st.columns(2)
     
     with col_left:
-        st.markdown("**US 30Y SOFR Swap, Treasury Yield, and Spread**")
-        # Plot for left column
+        # --- Left side plot: 30Y Yield (left y-axis) and Swap Spread (right y-axis) ---
+        st.markdown('**US 30Y SOFR Swap, Treasury Yield, and Spread**')
         csv_file = 'sofr_treasury_spread_log.csv'
         if os.path.isfile(csv_file):
             df_log = pd.read_csv(csv_file, parse_dates=['Date'])
@@ -219,46 +219,52 @@ def main():
                 df_log['SOFR_Swap'] = pd.to_numeric(df_log['SOFR_Swap'])
                 df_log['Treasury_Yield'] = pd.to_numeric(df_log['Treasury_Yield'])
                 df_log['Spread'] = pd.to_numeric(df_log['Spread'])
-                
+
+                # Moving average options as horizontal checkboxes
+                st.markdown('**Show moving averages:**')
+                ma_periods = [7, 30, 60, 90]
+                ma_labels = [f'{p}-day MA' for p in ma_periods]
+                ma_selected = []
+                cols = st.columns(len(ma_periods))
+                for i, (col, label) in enumerate(zip(cols, ma_labels)):
+                    if col.checkbox(label, value=False, key=f'left_ma_{ma_periods[i]}'):
+                        ma_selected.append(ma_labels[i])
+
+                # Compute moving averages if selected
+                for p in ma_periods:
+                    if f'{p}-day MA' in ma_selected:
+                        df_log[f'Yield_MA_{p}'] = df_log['Treasury_Yield'].rolling(window=p, min_periods=1).mean()
+                        df_log[f'Spread_MA_{p}'] = df_log['Spread'].rolling(window=p, min_periods=1).mean()
+
+                # Plot with dual y-axes: 30Y Yield (left), Spread (right)
                 fig = go.Figure()
-                fig.add_trace(go.Scatter(x=df_log['Date'], y=df_log['Spread'], mode='lines+markers', name='Spread', line=dict(color='green', width=2)))
-                fig.add_trace(go.Scatter(x=df_log['Date'], y=df_log['SOFR_Swap'], mode='lines+markers', name='SOFR Swap', line=dict(color='blue', width=2)))
-                fig.add_trace(go.Scatter(x=df_log['Date'], y=df_log['Treasury_Yield'], mode='lines+markers', name='Treasury Yield', line=dict(color='red', width=2)))
-                # Highlight zero line
-                fig.add_shape(type="line", x0=df_log['Date'].min(), x1=df_log['Date'].max(), y0=0, y1=0, line=dict(color="black", width=1, dash="dash"), xref='x', yref='y')
+                # Add raw series only if no moving average is selected
+                if not ma_selected:
+                    # 30Y Yield on left y-axis
+                    fig.add_trace(go.Scatter(x=df_log['Date'], y=df_log['Treasury_Yield'], mode='lines', name='30Y Yield', line=dict(color='blue'), yaxis='y1'))
+                    # Spread on right y-axis
+                    fig.add_trace(go.Scatter(x=df_log['Date'], y=df_log['Spread'], mode='lines', name='Swap Spread', line=dict(color='green'), yaxis='y2'))
+                # Add moving averages if selected
+                ma_colors = {7: 'royalblue', 30: 'orange', 60: 'purple', 90: 'brown'}
+                for p in ma_periods:
+                    if f'{p}-day MA' in ma_selected:
+                        fig.add_trace(go.Scatter(x=df_log['Date'], y=df_log[f'Yield_MA_{p}'], mode='lines', name=f'30Y Yield {p}-day MA', line=dict(color=ma_colors[p], dash='dot'), yaxis='y1'))
+                        fig.add_trace(go.Scatter(x=df_log['Date'], y=df_log[f'Spread_MA_{p}'], mode='lines', name=f'Swap Spread {p}-day MA', line=dict(color=ma_colors[p], dash='dash'), yaxis='y2'))
+                # Highlight zero line on right y-axis
+                fig.add_shape(type="line", x0=df_log['Date'].min(), x1=df_log['Date'].max(), y0=0, y1=0, line=dict(color="black", width=1, dash="dash"), xref='x', yref='y2')
                 fig.update_layout(
-                    title="US 30Y SOFR Swap, Treasury Yield, and Spread",
-                    xaxis_title="Date",
-                    yaxis_title="Rate / Spread (%)",
+                    title="US 30Y Yield and Swap Spread Over Time",
+                    xaxis=dict(title="Date"),
+                    yaxis=dict(title="30Y Yield", tickfont=dict(color='blue')),
+                    yaxis2=dict(title="Swap Spread", tickfont=dict(color='green'), overlaying='y', side='right', showgrid=False),
                     legend_title="Series",
                     hovermode="x unified",
                     template="plotly_white",
                     height=400
                 )
-                fig.update_xaxes(
-                    rangeslider_visible=False,
-                    rangeselector=dict(
-                        buttons=list([
-                            dict(count=1, label="1D", step="day", stepmode="backward"),
-                            dict(count=7, label="7D", step="day", stepmode="backward"),
-                            dict(count=1, label="1M", step="month", stepmode="backward"),
-                            dict(count=3, label="3M", step="month", stepmode="backward"),
-                            dict(count=6, label="6M", step="month", stepmode="backward"),
-                            dict(count=1, label="1Y", step="year", stepmode="backward"),
-                            dict(count=2, label="2Y", step="year", stepmode="backward"),
-                            dict(count=5, label="5Y", step="year", stepmode="backward"),
-                            dict(step="all", label="All")
-                        ]),
-                        bgcolor='lightgray',
-                        activecolor='steelblue',
-                        font=dict(size=10)
-                    )
-                )
                 st.plotly_chart(fig, use_container_width=True)
-                
-                # Show data summary
                 st.write(f"**Data Summary:** {len(df_log)} points | {df_log['Date'].min().strftime('%Y-%m-%d')} to {df_log['Date'].max().strftime('%Y-%m-%d')}")
-    
+
     with col_right:
         st.markdown("**30Y Yield minus Policy Rate Spread: US, Germany, Japan**")
         # Plot for right column
