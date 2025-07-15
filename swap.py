@@ -364,22 +364,26 @@ if os.path.isfile(swap_csv) and os.path.isfile(yield_csv):
         else:
             df_plot = df_merged
 
-        # Moving average options
+        # Moving average options as horizontal checkboxes
         st.markdown('**Show moving averages:**')
         ma_periods = [7, 30, 60, 90]
-        ma_options = {f'{p}-day MA': p for p in ma_periods}
-        selected_ma = st.multiselect('Select moving averages to plot', list(ma_options.keys()), default=[], key='ma_select', help='Add moving averages for both series')
+        ma_labels = [f'{p}-day MA' for p in ma_periods]
+        ma_selected = []
+        cols = st.columns(len(ma_periods))
+        for i, (col, label) in enumerate(zip(cols, ma_labels)):
+            if col.checkbox(label, value=False, key=f'ma_{ma_periods[i]}'):
+                ma_selected.append(ma_labels[i])
 
         # Compute moving averages if selected
         for p in ma_periods:
-            if f'{p}-day MA' in selected_ma:
+            if f'{p}-day MA' in ma_selected:
                 df_plot[f'Yield_MA_{p}'] = df_plot['Price_yield'].rolling(window=p, min_periods=1).mean()
                 df_plot[f'Spread_MA_{p}'] = df_plot['spread'].rolling(window=p, min_periods=1).mean()
 
         # Plot with secondary y-axis for swap spread
         fig = go.Figure()
         # Add raw series only if no moving average is selected
-        if not selected_ma:
+        if not ma_selected:
             # 30Y Yield on left y-axis
             fig.add_trace(go.Scatter(x=df_plot['Date'], y=df_plot['Price_yield'], mode='lines', name='30Y Yield', line=dict(color='blue'), yaxis='y1'))
             # Swap Spread on right y-axis
@@ -387,7 +391,7 @@ if os.path.isfile(swap_csv) and os.path.isfile(yield_csv):
         # Add moving averages if selected
         ma_colors = {7: 'royalblue', 30: 'orange', 60: 'purple', 90: 'brown'}
         for p in ma_periods:
-            if f'{p}-day MA' in selected_ma:
+            if f'{p}-day MA' in ma_selected:
                 fig.add_trace(go.Scatter(x=df_plot['Date'], y=df_plot[f'Yield_MA_{p}'], mode='lines', name=f'30Y Yield {p}-day MA', line=dict(color=ma_colors[p], dash='dot'), yaxis='y1'))
                 fig.add_trace(go.Scatter(x=df_plot['Date'], y=df_plot[f'Spread_MA_{p}'], mode='lines', name=f'Swap Spread {p}-day MA', line=dict(color=ma_colors[p], dash='dash'), yaxis='y2'))
         # Highlight zero line on right y-axis
